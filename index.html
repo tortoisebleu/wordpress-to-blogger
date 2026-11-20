@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>引っ越し飛脚 〜ブログ移行変換ツール〜 | WordPress (Ameba Ownd) → Blogger</title>
+    <!-- Tailwind CSSの読み込み -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZipの読み込み（画像一括ZIP化用） -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- Google Fonts (Noto Sans JP & Shippori Mincho for elegance) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Shippori+Mincho:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: linear-gradient(135deg, #f4f8f6 0%, #e4efe9 50%, #bed3ca 100%);
+            background-attachment: fixed;
+        }
+        .font-elegant {
+            font-family: 'Shippori Mincho', 'Noto Sans JP', serif;
+        }
+        /* ドラッグ＆ドロップエリアのアニメーション */
+        .drop-zone {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: rgba(255, 255, 255, 0.6);
+        }
+        .drop-zone:hover {
+            border-color: #5c8a78;
+            background-color: rgba(190, 211, 202, 0.2);
+        }
+        .drop-zone.dragover {
+            border-color: #3d6b59;
+            background-color: rgba(190, 211, 202, 0.45);
+            transform: scale(1.01);
+        }
+        /* カスタムチェックボックスのアクセントカラー */
+        input[type="checkbox"] {
+            accent-color: #467362;
+        }
+    </style>
+</head>
+<body class="text-slate-800 min-h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="bg-white/85 backdrop-blur-md border-b border-[#bed3ca] sticky top-0 z-10 shadow-sm">
+        <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center space-x-3.5">
+                <div class="bg-[#bed3ca] text-[#234236] p-2.5 rounded-xl shadow-inner border border-[#a3c0b4]" title="引っ越し飛脚">
+                    <!-- 元の双方向矢印（移行・変換）アイコン -->
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-baseline flex-wrap gap-x-2">
+                        <h1 class="text-xl sm:text-2xl font-bold text-[#1f3a30] font-elegant tracking-wider">引っ越し飛脚</h1>
+                        <span class="text-xs sm:text-sm font-medium text-[#3d6b59] font-elegant">〜ブログ移行変換ツール〜</span>
+                    </div>
+                    <p class="text-xs text-[#527366] mt-0.5">WordPress (Ameba Ownd) → Blogger ｜ 完全ローカル動作・データ外部送信なし</p>
+                </div>
+            </div>
+            <span class="hidden sm:inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-medium bg-[#bed3ca]/45 text-[#234236] border border-[#bed3ca]">
+                <svg class="w-3.5 h-3.5 mr-1.5 text-[#3d6b59]" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
+                ブラウザ内で完結（安全）
+            </span>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-4xl w-full mx-auto px-4 py-8 space-y-6">
+
+        <!-- 説明カード -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-[#bed3ca]/80">
+            <h2 class="text-base font-bold text-[#1f3a30] mb-2.5 flex items-center font-elegant">
+                <span class="bg-[#bed3ca] text-[#1f3a30] w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-sans font-bold mr-2.5 shadow-sm">1</span>
+                このツールについて
+            </h2>
+            <p class="text-sm text-slate-600 leading-relaxed">
+                WordPress形式（Ameba Owndなどのエクスポートファイル：WXR / XML）を、Google Bloggerで直接インポートできる「Blogger Atom形式（XML）」に変換します。<br>
+                すべての処理はお使いのパソコン（ブラウザ）内で行われるため、<strong class="text-[#2b4c3f]">記事データがインターネット上のサーバーにアップロードされることは一切ありません。</strong>
+            </p>
+        </div>
+
+        <!-- アップロードエリア -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-[#bed3ca]/80">
+            <h2 class="text-base font-bold text-[#1f3a30] mb-4 flex items-center font-elegant">
+                <span class="bg-[#bed3ca] text-[#1f3a30] w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-sans font-bold mr-2.5 shadow-sm">2</span>
+                エクスポートされたXMLファイルを選択
+            </h2>
+
+            <!-- オプション設定 -->
+            <div class="mb-5 p-4 bg-[#f3f8f6] rounded-xl border border-[#bed3ca]/70 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="includeDrafts" class="rounded border-[#9eb8ad] h-4 w-4" checked>
+                        <span class="ml-2 text-sm font-medium text-[#234236]">下書き（非公開記事）も含める</span>
+                    </label>
+                    <p class="text-xs text-[#5b7a6e] mt-1 ml-6">チェックを外すと「公開済み」の記事のみを変換します。</p>
+                </div>
+                <div>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="convertLineBreaks" class="rounded border-[#9eb8ad] h-4 w-4" checked>
+                        <span class="ml-2 text-sm font-medium text-[#234236]">改行をHTMLタグ(&lt;br&gt;)に自動補正</span>
+                    </label>
+                    <p class="text-xs text-[#5b7a6e] mt-1 ml-6">Blogger移行時の改行崩れを防ぎます。</p>
+                </div>
+            </div>
+
+            <!-- ドロップゾーン -->
+            <div id="dropZone" class="drop-zone border-2 border-dashed border-[#99b8ab] rounded-2xl p-8 text-center cursor-pointer">
+                <input type="file" id="fileInput" accept=".xml" multiple class="hidden">
+                <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-[#bed3ca]/40 flex items-center justify-center text-[#3d6b59]">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    </svg>
+                </div>
+                <p class="text-base font-medium text-[#1f3a30] mb-1">ここにXMLファイルをドラッグ＆ドロップ（複数選択・一括統合可）</p>
+                <p class="text-xs text-[#5b7a6e] mb-4">分割された複数のXMLファイルをまとめて1つのBlogger用ファイルに合体できます（.xml）</p>
+                <button type="button" onclick="document.getElementById('fileInput').click()" class="px-5 py-2.5 bg-[#3d6b59] hover:bg-[#2f5446] text-white text-sm font-medium rounded-xl transition shadow-sm">
+                    ファイルを選択する（複数可）
+                </button>
+                <p class="text-[11px] text-[#5b7a6e] mt-4">
+                    ※ファイル数や画像枚数が非常に多い場合は、ブラウザの負荷やBloggerのインポート上限を防ぐため、<strong class="text-[#234236]">数十ファイルずつ数回に分けて変換する</strong>のがおすすめです。
+                </p>
+            </div>
+
+            <!-- 読み込み済みファイル数表示 -->
+            <div id="loadedFilesInfo" class="hidden mt-3 text-xs text-[#2d5948] font-medium flex items-center justify-between bg-[#f3f8f6] px-4 py-2 rounded-lg border border-[#bed3ca]">
+                <span id="loadedFilesCountText">0個のXMLファイルを読み込みました</span>
+                <button type="button" id="clearFilesBtn" class="text-red-600 hover:underline">リセット</button>
+            </div>
+
+            <!-- メッセージ表示エリア（エラー・通知用） -->
+            <div id="messageBox" class="hidden mt-4 p-4 rounded-xl text-sm"></div>
+        </div>
+
+        <!-- 変換結果＆ダウンロードエリア（初期状態は非表示） -->
+        <div id="resultSection" class="hidden bg-white/95 backdrop-blur-sm rounded-2xl p-6 shadow-md border border-[#8fb3a4] ring-2 ring-[#bed3ca]/50 space-y-6">
+            <div>
+                <h2 class="text-base font-bold text-[#1f3a30] mb-4 flex items-center font-elegant">
+                    <span class="bg-[#3d6b59] text-white w-6 h-6 rounded-full inline-flex items-center justify-center text-xs font-sans font-bold mr-2.5 shadow-sm">3</span>
+                    変換完了！Blogger用ファイル ＆ 画像リストをダウンロード
+                </h2>
+
+                <!-- 統計情報 -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                    <div class="bg-[#f3f8f6] p-3.5 rounded-xl border border-[#bed3ca] text-center">
+                        <div class="text-xs text-[#527366]">変換された記事総数</div>
+                        <div id="statTotal" class="text-xl font-bold text-[#1f3a30] mt-1">0</div>
+                    </div>
+                    <div class="bg-[#e6f2ed] p-3.5 rounded-xl border border-[#a8cbbd] text-center">
+                        <div class="text-xs text-[#2d5948]">公開記事</div>
+                        <div id="statPublished" class="text-xl font-bold text-[#2d5948] mt-1">0</div>
+                    </div>
+                    <div class="bg-amber-50/80 p-3.5 rounded-xl border border-amber-200/80 text-center">
+                        <div class="text-xs text-amber-800">下書き記事</div>
+                        <div id="statDraft" class="text-xl font-bold text-amber-800 mt-1">0</div>
+                    </div>
+                    <div class="bg-teal-50/80 p-3.5 rounded-xl border border-teal-200/80 text-center">
+                        <div class="text-xs text-teal-800">抽出された画像総数</div>
+                        <div id="statImages" class="text-xl font-bold text-teal-800 mt-1">0</div>
+                    </div>
+                </div>
+
+                <!-- ダウンロードボタン群 -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Blogger XML ダウンロード -->
+                    <div class="flex flex-col justify-between bg-[#bed3ca]/35 p-4 rounded-xl border border-[#9eb8ad] gap-3">
+                        <div>
+                            <span class="inline-block px-2 py-0.5 bg-[#3d6b59] text-white text-[10px] font-bold rounded mb-1">記事データ</span>
+                            <p class="font-bold text-[#1f3a30] text-sm truncate" id="outputFileName">blogger_import_all.xml</p>
+                            <p class="text-xs text-[#436658] mt-0.5">すべての記事を1つにまとめたBlogger用ファイルです。</p>
+                        </div>
+                        <button id="downloadBtn" class="w-full px-4 py-2.5 bg-[#3d6b59] hover:bg-[#2c5042] text-white text-sm font-bold rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span>Blogger用XMLをダウンロード</span>
+                        </button>
+                    </div>
+
+                    <!-- 画像URLリスト ダウンロード -->
+                    <div class="flex flex-col justify-between bg-[#f3f8f6] p-4 rounded-xl border border-[#bed3ca] gap-3">
+                        <div>
+                            <span class="inline-block px-2 py-0.5 bg-teal-700 text-white text-[10px] font-bold rounded mb-1">画像保全用</span>
+                            <p class="font-bold text-[#1f3a30] text-sm">画像の一括保存 ＆ URLリスト</p>
+                            <p class="text-xs text-[#527366] mt-0.5">画像をZIPでまとめて保存するか、URLリストを出力できます。</p>
+                        </div>
+                        <div class="space-y-2">
+                            <button id="downloadImgZipBtn" class="w-full px-4 py-2.5 bg-teal-700 hover:bg-teal-800 text-white text-sm font-bold rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>画像をZIPで一括保存</span>
+                            </button>
+                            <div class="flex gap-2">
+                                <button id="downloadImgCsvBtn" class="flex-1 px-3 py-2 bg-white hover:bg-slate-50 text-teal-800 border border-teal-700/60 text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center">
+                                    <span>CSV一覧 (記事名付)</span>
+                                </button>
+                                <button id="downloadImgTxtBtn" class="flex-1 px-3 py-2 bg-white hover:bg-slate-50 text-teal-800 border border-teal-700/60 text-xs font-bold rounded-xl shadow-sm transition flex items-center justify-center">
+                                    <span>URLのみ (.txt)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 画像ZIPダウンロード進捗バー（処理中のみ表示） -->
+                <div id="zipProgressContainer" class="hidden mt-4 p-4 bg-[#f3f8f6] rounded-xl border border-[#bed3ca]">
+                    <div class="flex justify-between text-xs font-bold text-[#1f3a30] mb-1.5">
+                        <span id="zipProgressLabel">画像をダウンロードしてZIPにまとめています...</span>
+                        <span id="zipProgressCount">0 / 0</span>
+                    </div>
+                    <div class="w-full bg-[#dce8e3] rounded-full h-2.5 overflow-hidden">
+                        <div id="zipProgressBar" class="bg-teal-700 h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div>
+                    </div>
+                    <p id="zipProgressNote" class="text-[11px] text-[#527366] mt-1.5">※枚数が多い場合は数分かかることがあります。画面を閉じずにお待ちください。</p>
+                </div>
+            </div>
+
+            <!-- 記事プレビューリスト -->
+            <div>
+                <h3 class="text-xs font-bold uppercase tracking-wider text-[#527366] mb-2">変換される記事のプレビュー（先頭20件）</h3>
+                <div class="border border-[#bed3ca] rounded-xl overflow-hidden bg-white">
+                    <ul id="previewList" class="divide-y divide-[#e3ede8] text-sm max-h-60 overflow-y-auto">
+                        <!-- JSで動的に追加 -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 抽出された画像プレビューリスト -->
+            <div id="imagePreviewContainer" class="hidden">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-[#527366] mb-2">抽出された画像URLのプレビュー（先頭20件・クリックで画像を開く）</h3>
+                <div class="border border-[#bed3ca] rounded-xl overflow-hidden bg-white">
+                    <ul id="imagePreviewList" class="divide-y divide-[#e3ede8] text-xs max-h-48 overflow-y-auto">
+                        <!-- JSで動的に追加 -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bloggerへのインポート手順＆注意事項 -->
+        <div class="bg-white/90 backdrop-blur-sm rounded-2xl p-6 shadow-sm border border-[#bed3ca]/80 space-y-4">
+            <h2 class="text-base font-bold text-[#1f3a30] flex items-center font-elegant">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[#3d6b59] mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Google Bloggerへのインポート手順と重要な注意点
+            </h2>
+            
+            <ol class="list-decimal list-inside text-sm text-slate-700 space-y-2 ml-1">
+                <li>Google Bloggerの管理画面にログインし、移行先のブログを選択します。</li>
+                <li>左メニューの<strong class="text-[#234236]">「設定」</strong>をクリックします。</li>
+                <li>下へスクロールし、「ブログの管理」セクションにある<strong class="text-[#234236]">「コンテンツをインポート」</strong>をクリックします。</li>
+                <li>ロボットではないことを確認するチェックを入れ、「インポート」ボタンを押して、<strong class="text-[#234236]">上記でダウンロードしたXMLファイル</strong>を選択します。</li>
+            </ol>
+
+            <div class="bg-[#f3f8f6] border-l-4 border-[#6c9685] p-4 rounded-r-xl mt-4">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <svg class="h-5 w-5 text-[#467362]" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-bold text-[#1f3a30]">【重要】画像データについての注意点</h3>
+                        <p class="text-xs text-[#436658] mt-1 leading-relaxed">
+                            XMLファイルの移行では、記事内の画像は「移行元サーバー（Ameba Owndなど）上の画像URL」を参照した状態になります。移行元サービスの終了やサーバー削除が行われると、Blogger側でも画像が表示されなくなる可能性があります。<br>
+                            <strong class="text-[#234236]">対策：</strong> 上記の「画像をZIPで一括保存」で手元に画像をバックアップした上で、特に大切な記事の画像はBloggerの編集画面から手動でアップロードし直すことをおすすめします。
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- フッター -->
+    <footer class="bg-white/70 backdrop-blur-sm border-t border-[#bed3ca] py-4 text-center text-xs text-[#527366]">
+        引っ越し飛脚 〜ブログ移行変換ツール〜 (WordPress / Ameba Ownd to Google Blogger)
+    </footer>
+
+    <script>
+        // DOM要素の取得
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const messageBox = document.getElementById('messageBox');
+        const resultSection = document.getElementById('resultSection');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadImgZipBtn = document.getElementById('downloadImgZipBtn');
+        const downloadImgCsvBtn = document.getElementById('downloadImgCsvBtn');
+        const downloadImgTxtBtn = document.getElementById('downloadImgTxtBtn');
+        const zipProgressContainer = document.getElementById('zipProgressContainer');
+        const zipProgressLabel = document.getElementById('zipProgressLabel');
+        const zipProgressCount = document.getElementById('zipProgressCount');
+        const zipProgressBar = document.getElementById('zipProgressBar');
+        const includeDraftsCheckbox = document.getElementById('includeDrafts');
+        const convertLineBreaksCheckbox = document.getElementById('convertLineBreaks');
+        const loadedFilesInfo = document.getElementById('loadedFilesInfo');
+        const loadedFilesCountText = document.getElementById('loadedFilesCountText');
+        const clearFilesBtn = document.getElementById('clearFilesBtn');
+
+        let convertedXmlString = '';
+        let currentFileName = 'blogger_import_all.xml';
+        let loadedFilesData = []; // { name: string, content: string } の配列
+        let extractedImages = []; // { postTitle: string, postDate: string, url: string } の配列
+
+        // ドラッグ＆ドロップイベントの設定
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false);
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if (files.length > 0) {
+                handleFiles(files);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFiles(e.target.files);
+            }
+        });
+
+        clearFilesBtn.addEventListener('click', () => {
+            loadedFilesData = [];
+            fileInput.value = '';
+            loadedFilesInfo.classList.add('hidden');
+            resultSection.classList.add('hidden');
+            hideMessage();
+        });
+
+        // オプション変更時に再変換を実行
+        includeDraftsCheckbox.addEventListener('change', () => {
+            if (loadedFilesData.length > 0) {
+                processAllXMLs();
+            }
+        });
+        convertLineBreaksCheckbox.addEventListener('change', () => {
+            if (loadedFilesData.length > 0) {
+                processAllXMLs();
+            }
+        });
+
+        // メッセージ表示関数
+        function showMessage(text, type = 'error') {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'border-red-200', 'bg-[#e6f2ed]', 'text-[#234236]', 'border-[#a8cbbd]');
+            if (type === 'error') {
+                messageBox.classList.add('bg-red-50', 'text-red-700', 'border', 'border-red-200');
+            } else {
+                messageBox.classList.add('bg-[#e6f2ed]', 'text-[#234236]', 'border', 'border-[#a8cbbd]');
+            }
+        }
+
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        // 複数ファイル読み込み処理
+        async function handleFiles(fileList) {
+            hideMessage();
+            const xmlFiles = Array.from(fileList).filter(f => f.name.toLowerCase().endsWith('.xml'));
+            
+            if (xmlFiles.length === 0) {
+                showMessage('エラー: XMLファイル（.xml）を選択してください。');
+                return;
+            }
+
+            try {
+                const readPromises = xmlFiles.map(file => {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve({ name: file.name, content: e.target.result });
+                        reader.onerror = () => reject(new Error(`${file.name} の読み込みに失敗しました`));
+                        reader.readAsText(file, 'UTF-8');
+                    });
+                });
+
+                const results = await Promise.all(readPromises);
+                // ファイル名順にソートして格納
+                results.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+                loadedFilesData = results;
+
+                loadedFilesCountText.textContent = `${loadedFilesData.length}個のXMLファイルを読み込みました`;
+                loadedFilesInfo.classList.remove('hidden');
+
+                processAllXMLs();
+            } catch (err) {
+                showMessage('エラー: ' + err.message);
+            }
+        }
+
+        // XMLのエスケープ処理
+        function escapeXml(unsafe) {
+            if (!unsafe) return '';
+            return unsafe.replace(/[<>&'"]/g, function (c) {
+                switch (c) {
+                    case '<': return '&lt;';
+                    case '>': return '&gt;';
+                    case '&': return '&amp;';
+                    case '\'': return '&apos;';
+                    case '"': return '&quot;';
+                }
+            });
+        }
+
+        // 日付をISO 8601形式 (Blogger Atom用) に変換
+        function formatDateToISO(dateStr) {
+            if (!dateStr || dateStr === '0000-00-00 00:00:00') {
+                return new Date().toISOString();
+            }
+            const parsed = new Date(dateStr.replace(' ', 'T') + '+09:00');
+            if (isNaN(parsed.getTime())) {
+                return new Date().toISOString();
+            }
+            return parsed.toISOString();
+        }
+
+        // HTML文字列から画像URLをすべて抽出するヘルパー
+        function extractImageUrlsFromHtml(htmlContent) {
+            const urls = [];
+            if (!htmlContent) return urls;
+            const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+            let match;
+            while ((match = imgRegex.exec(htmlContent)) !== null) {
+                if (match[1]) {
+                    urls.push(match[1]);
+                }
+            }
+            return urls;
+        }
+
+        // 複数XMLの一括変換＆統合ロジック
+        function processAllXMLs() {
+            try {
+                const includeDrafts = includeDraftsCheckbox.checked;
+                const convertLineBreaks = convertLineBreaksCheckbox.checked;
+
+                let totalConverted = 0;
+                let publishedCount = 0;
+                let draftCount = 0;
+                const previewItems = [];
+                extractedImages = [];
+                const seenImageUrls = new Set();
+
+                let blogTitle = "Ameba Ownd Import";
+                const blogId = String(Date.now()) + '000000';
+                let entriesXml = '';
+                let globalIndex = 0;
+
+                for (let fIdx = 0; fIdx < loadedFilesData.length; fIdx++) {
+                    const fileObj = loadedFilesData[fIdx];
+                    const cleanXmlText = fileObj.content.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+                    
+                    const parser = new DOMParser();
+                    const xmlDoc = parser.parseFromString(cleanXmlText, "text/xml");
+
+                    const parseError = xmlDoc.getElementsByTagName("parsererror");
+                    if (parseError.length > 0) {
+                        console.warn(`スキップ: ${fileObj.name} はXML解析エラーとなりました`);
+                        continue;
+                    }
+
+                    if (fIdx === 0) {
+                        const channelTitleNode = xmlDoc.querySelector("channel > title");
+                        if (channelTitleNode && channelTitleNode.textContent) {
+                            blogTitle = channelTitleNode.textContent;
+                        }
+                    }
+
+                    const items = xmlDoc.getElementsByTagName("item");
+
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        globalIndex++;
+
+                        const postTypeNode = item.getElementsByTagNameNS("*", "post_type")[0];
+                        const postType = postTypeNode ? postTypeNode.textContent : 'post';
+                        if (postType !== 'post' && postType !== 'page') {
+                            continue;
+                        }
+
+                        const statusNode = item.getElementsByTagNameNS("*", "status")[0];
+                        const status = statusNode ? statusNode.textContent : 'publish';
+                        const isDraft = (status !== 'publish');
+
+                        if (isDraft && !includeDrafts) {
+                            continue;
+                        }
+
+                        const titleNode = item.getElementsByTagName("title")[0];
+                        const title = titleNode && titleNode.textContent ? titleNode.textContent : '無題';
+
+                        const contentNode = item.getElementsByTagNameNS("*", "encoded")[0];
+                        let content = contentNode ? contentNode.textContent : '';
+
+                        if (convertLineBreaks && content) {
+                            if (!content.includes('<p>') && !content.includes('<br')) {
+                                content = content.replace(/\r\n|\r|\n/g, '<br />\n');
+                            }
+                        }
+
+                        const postDateNode = item.getElementsByTagNameNS("*", "post_date")[0];
+                        const pubDateNode = item.getElementsByTagName("pubDate")[0];
+                        const rawDate = postDateNode ? postDateNode.textContent : (pubDateNode ? pubDateNode.textContent : '');
+                        const isoDate = formatDateToISO(rawDate);
+                        const shortDate = rawDate.split(' ')[0] || isoDate.split('T')[0];
+
+                        // 画像URLの抽出
+                        const imgs = extractImageUrlsFromHtml(content);
+                        imgs.forEach(url => {
+                            if (!seenImageUrls.has(url)) {
+                                seenImageUrls.add(url);
+                                extractedImages.push({
+                                    postTitle: title,
+                                    postDate: shortDate,
+                                    url: url
+                                });
+                            }
+                        });
+
+                        const categories = [];
+                        const catNodes = item.getElementsByTagName("category");
+                        for (let j = 0; j < catNodes.length; j++) {
+                            const catText = catNodes[j].textContent.trim();
+                            if (catText && catText !== 'Uncategorized' && catText !== '未分類') {
+                                categories.push(catText);
+                            }
+                        }
+                        const uniqueCategories = [...new Set(categories)];
+
+                        const creatorNode = item.getElementsByTagNameNS("*", "creator")[0];
+                        const authorName = creatorNode ? creatorNode.textContent : 'Author';
+
+                        // 複数ファイル統合でも絶対にIDが被らないよう globalIndex を組み合わせる
+                        const wpIdNode = item.getElementsByTagNameNS("*", "post_id")[0];
+                        const wpIdText = wpIdNode ? wpIdNode.textContent.trim() : '';
+                        const postNumId = /^\d+$/.test(wpIdText) ? `${wpIdText}${globalIndex}` : String(globalIndex);
+
+                        const yyyy = isoDate.slice(0, 4);
+                        const mm = isoDate.slice(5, 7);
+                        const fileName = (postType === 'page')
+                            ? `/p/page-${postNumId}.html`
+                            : `/${yyyy}/${mm}/post-${postNumId}.html`;
+
+                        entriesXml += `  <entry>\n`;
+                        entriesXml += `    <id>tag:blogger.com,1999:blog-${blogId}.post-${postNumId}</id>\n`;
+                        entriesXml += `    <blogger:type>${postType === 'page' ? 'PAGE' : 'POST'}</blogger:type>\n`;
+                        entriesXml += `    <blogger:status>${isDraft ? 'DRAFT' : 'LIVE'}</blogger:status>\n`;
+                        entriesXml += `    <author>\n      <name>${escapeXml(authorName)}</name>\n      <blogger:type>BLOGGER</blogger:type>\n    </author>\n`;
+                        entriesXml += `    <title>${escapeXml(title)}</title>\n`;
+                        entriesXml += `    <content type='html'>${escapeXml(content)}</content>\n`;
+                        entriesXml += `    <blogger:metaDescription/>\n`;
+                        entriesXml += `    <blogger:created>${isoDate}</blogger:created>\n`;
+                        entriesXml += `    <published>${isoDate}</published>\n`;
+                        entriesXml += `    <updated>${isoDate}</updated>\n`;
+                        entriesXml += `    <blogger:location/>\n`;
+
+                        if (uniqueCategories.length > 0) {
+                            uniqueCategories.forEach(cat => {
+                                entriesXml += `    <category scheme='http://www.blogger.com/atom/ns#' term='${escapeXml(cat)}'/>\n`;
+                            });
+                        } else {
+                            entriesXml += `    <category/>\n`;
+                        }
+
+                        entriesXml += `    <blogger:filename>${escapeXml(fileName)}</blogger:filename>\n`;
+                        entriesXml += `    <link/>\n`;
+                        entriesXml += `    <enclosure/>\n`;
+                        entriesXml += `    <blogger:trashed/>\n`;
+                        entriesXml += `  </entry>\n`;
+
+                        if (isDraft) {
+                            draftCount++;
+                        } else {
+                            publishedCount++;
+                        }
+
+                        totalConverted++;
+
+                        if (previewItems.length < 20) {
+                            previewItems.push({
+                                title: title,
+                                date: shortDate,
+                                isDraft: isDraft,
+                                categories: uniqueCategories
+                            });
+                        }
+                    }
+                }
+
+                if (totalConverted === 0) {
+                    showMessage('変換対象となる記事が見つかりませんでした。（下書きのみの場合は「下書きも含める」にチェックを入れてください）');
+                    resultSection.classList.add('hidden');
+                    return;
+                }
+
+                let atomXml = `<?xml version='1.0' encoding='UTF-8'?>\n`;
+                atomXml += `<feed xmlns='http://www.w3.org/2005/Atom' xmlns:blogger='http://schemas.google.com/blogger/2018'>\n`;
+                atomXml += `  <id>tag:blogger.com,1999:blog-${blogId}</id>\n`;
+                atomXml += `  <title>${escapeXml(blogTitle)}</title>\n`;
+                atomXml += entriesXml;
+                atomXml += `</feed>`;
+
+                convertedXmlString = atomXml;
+                if (loadedFilesData.length === 1) {
+                    const baseName = loadedFilesData[0].name.replace(/\.xml$/i, '');
+                    currentFileName = `${baseName}_for_blogger.xml`;
+                } else {
+                    currentFileName = `ameba_ownd_merged_${loadedFilesData.length}files_for_blogger.xml`;
+                }
+
+                // UIの更新
+                document.getElementById('statTotal').textContent = totalConverted.toLocaleString();
+                document.getElementById('statPublished').textContent = publishedCount.toLocaleString();
+                document.getElementById('statDraft').textContent = draftCount.toLocaleString();
+                document.getElementById('statImages').textContent = extractedImages.length.toLocaleString();
+                document.getElementById('outputFileName').textContent = currentFileName;
+
+                // 記事プレビューリストの描画
+                const previewList = document.getElementById('previewList');
+                previewList.innerHTML = '';
+                previewItems.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'p-3 bg-white hover:bg-[#f3f8f6] flex items-center justify-between gap-2 transition-colors';
+                    
+                    const badge = item.isDraft 
+                        ? `<span class="px-2 py-0.5 text-xs rounded-md bg-amber-100 text-amber-800 font-medium">下書き</span>`
+                        : `<span class="px-2 py-0.5 text-xs rounded-md bg-[#bed3ca]/60 text-[#1f3a30] font-medium">公開</span>`;
+                    
+                    const cats = item.categories.length > 0 
+                        ? `<span class="text-xs text-[#5b7a6e] ml-2">[${item.categories.join(', ')}]</span>` 
+                        : '';
+
+                    li.innerHTML = `
+                        <div class="truncate">
+                            ${badge}
+                            <span class="font-medium text-slate-800 ml-2">${escapeXml(item.title)}</span>
+                            ${cats}
+                        </div>
+                        <span class="text-xs text-[#5b7a6e] whitespace-nowrap">${item.date}</span>
+                    `;
+                    previewList.appendChild(li);
+                });
+
+                // 画像プレビューリストの描画
+                const imagePreviewContainer = document.getElementById('imagePreviewContainer');
+                const imagePreviewList = document.getElementById('imagePreviewList');
+                if (extractedImages.length > 0) {
+                    imagePreviewList.innerHTML = '';
+                    extractedImages.slice(0, 20).forEach(img => {
+                        const li = document.createElement('li');
+                        li.className = 'p-2.5 bg-white hover:bg-[#f3f8f6] flex items-center justify-between gap-3 transition-colors';
+                        li.innerHTML = `
+                            <div class="truncate flex-1">
+                                <span class="text-[#527366] font-medium">[${escapeXml(img.postTitle)}]</span>
+                                <a href="${escapeXml(img.url)}" target="_blank" rel="noopener noreferrer" class="text-teal-700 hover:underline ml-1.5">${escapeXml(img.url)}</a>
+                            </div>
+                            <span class="text-[11px] text-slate-400 whitespace-nowrap">${img.postDate}</span>
+                        `;
+                        imagePreviewList.appendChild(li);
+                    });
+                    imagePreviewContainer.classList.remove('hidden');
+                } else {
+                    imagePreviewContainer.classList.add('hidden');
+                }
+
+                resultSection.classList.remove('hidden');
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+            } catch (err) {
+                console.error(err);
+                showMessage('変換処理中に予期せぬエラーが発生しました: ' + err.message);
+            }
+        }
+
+        // 共通ファイルダウンロード関数
+        function triggerDownload(content, filename, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Blogger XMLダウンロードボタン
+        downloadBtn.addEventListener('click', () => {
+            if (!convertedXmlString) return;
+            triggerDownload(convertedXmlString, currentFileName, 'application/xml;charset=utf-8');
+        });
+
+        // 画像CSV一覧ダウンロードボタン（Excelで文字化けしないようBOM付きUTF-8）
+        downloadImgCsvBtn.addEventListener('click', () => {
+            if (extractedImages.length === 0) {
+                showMessage('抽出された画像がありません。');
+                return;
+            }
+            const bom = '\uFEFF';
+            let csv = '投稿日,記事タイトル,画像URL\n';
+            extractedImages.forEach(img => {
+                const safeTitle = `"${img.postTitle.replace(/"/g, '""')}"`;
+                csv += `${img.postDate},${safeTitle},${img.url}\n`;
+            });
+            triggerDownload(bom + csv, 'ameba_ownd_images_list.csv', 'text/csv;charset=utf-8');
+        });
+
+        // 画像URLテキストダウンロードボタン（一括ダウンローダー用）
+        downloadImgTxtBtn.addEventListener('click', () => {
+            if (extractedImages.length === 0) {
+                showMessage('抽出された画像がありません。');
+                return;
+            }
+            const txt = extractedImages.map(img => img.url).join('\n');
+            triggerDownload(txt, 'ameba_ownd_image_urls.txt', 'text/plain;charset=utf-8');
+        });
+
+        // 画像URLから安全なファイル名を生成するヘルパー
+        function getSafeImageFilename(url, index, dateStr, contentType) {
+            let ext = 'jpg';
+            if (contentType) {
+                if (contentType.includes('png')) ext = 'png';
+                else if (contentType.includes('gif')) ext = 'gif';
+                else if (contentType.includes('webp')) ext = 'webp';
+                else if (contentType.includes('jpeg') || contentType.includes('jpg')) ext = 'jpg';
+            } else {
+                const urlMatch = url.split('?')[0].match(/\.(jpg|jpeg|png|gif|webp)$/i);
+                if (urlMatch) ext = urlMatch[1].toLowerCase();
+            }
+            const cleanDate = (dateStr || '0000-00-00').replace(/[^0-9-]/g, '');
+            const num = String(index + 1).padStart(4, '0');
+            return `${cleanDate}_${num}.${ext}`;
+        }
+
+        // 画像一括ZIPダウンロードボタンの処理
+        downloadImgZipBtn.addEventListener('click', async () => {
+            if (extractedImages.length === 0) {
+                showMessage('抽出された画像がありません。');
+                return;
+            }
+            if (typeof JSZip === 'undefined') {
+                showMessage('エラー: ZIP生成ライブラリの読み込みに失敗しました。インターネット接続を確認してページを再読み込みしてください。');
+                return;
+            }
+
+            // UIを処理中状態にする
+            downloadImgZipBtn.disabled = true;
+            downloadImgZipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            zipProgressContainer.classList.remove('hidden');
+            hideMessage();
+
+            const zip = new JSZip();
+            const imgFolder = zip.folder("ameba_ownd_images");
+            const total = extractedImages.length;
+            let successCount = 0;
+            const failedList = [];
+
+            // 同時並行数を制限しながらダウンロード（サーバー負荷とブラウザフリーズ防止）
+            const concurrency = 5;
+            let currentIndex = 0;
+
+            async function worker() {
+                while (currentIndex < total) {
+                    const idx = currentIndex++;
+                    const item = extractedImages[idx];
+                    try {
+                        const response = await fetch(item.url, { mode: 'cors' });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        const blob = await response.blob();
+                        const contentType = response.headers.get('content-type') || blob.type;
+                        const fileName = getSafeImageFilename(item.url, idx, item.postDate, contentType);
+                        imgFolder.file(fileName, blob);
+                        successCount++;
+                    } catch (err) {
+                        failedList.push({
+                            postDate: item.postDate,
+                            postTitle: item.postTitle,
+                            url: item.url,
+                            reason: err.message
+                        });
+                    }
+
+                    // 進捗バーの更新
+                    const processed = successCount + failedList.length;
+                    const percent = Math.round((processed / total) * 100);
+                    zipProgressCount.textContent = `${processed} / ${total} 枚 (${percent}%)`;
+                    zipProgressBar.style.width = `${percent}%`;
+                }
+            }
+
+            try {
+                const workers = [];
+                for (let w = 0; w < Math.min(concurrency, total); w++) {
+                    workers.push(worker());
+                }
+                await Promise.all(workers);
+
+                // 取得できなかった画像がある場合は、リストをZIP内に同梱する
+                if (failedList.length > 0) {
+                    const failedTxt = failedList.map(f => f.url).join('\n');
+                    zip.file("failed_image_urls.txt", failedTxt);
+                }
+
+                zipProgressLabel.textContent = 'ZIPファイルを圧縮・作成しています...';
+                const zipBlob = await zip.generateAsync({ type: 'blob' });
+                
+                const url = URL.createObjectURL(zipBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'ameba_ownd_images.zip';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // 完了メッセージ
+                if (failedList.length === 0) {
+                    showMessage(`完了: 全 ${successCount} 枚の画像をZIPファイルに保存しました！`, 'info');
+                } else if (successCount > 0) {
+                    showMessage(`完了: ${successCount} 枚の画像をZIPに保存しました。（※セキュリティ制限等により ${failedList.length} 枚は直接取得できなかったため、ZIP内の「failed_image_urls.txt」にURLを記録しました）`, 'info');
+                } else {
+                    showMessage(`注意: Ameba Owndサーバーのセキュリティ制限（CORS）により、ブラウザから直接画像をダウンロードできませんでした。右側の「URLのみ (.txt)」ボタンからURLリストを保存し、Chrome拡張機能などの一括ダウンローダーをご利用ください。`, 'error');
+                }
+            } catch (err) {
+                showMessage('ZIP作成中にエラーが発生しました: ' + err.message);
+            } finally {
+                downloadImgZipBtn.disabled = false;
+                downloadImgZipBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                zipProgressLabel.textContent = '処理が完了しました';
+            }
+        });
+    </script>
+</body>
+</html>
