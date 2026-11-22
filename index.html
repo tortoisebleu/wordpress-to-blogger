@@ -104,6 +104,17 @@
                     </label>
                     <p class="text-xs text-[#5b7a6e] mt-1 ml-6">Blogger移行時の改行崩れを防ぎます。</p>
                 </div>
+                <div>
+                    <label class="inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="cleanWp" class="rounded border-[#9eb8ad] h-4 w-4" checked>
+                        <span class="ml-2 text-sm font-medium text-[#234236]">WordPress由来のHTMLを掃除する</span>
+                    </label>
+                    <p class="text-xs text-[#5b7a6e] mt-1 ml-6">wpコメント・figure・wp系class・段落末尾の&lt;br&gt;を整理します。</p>
+                    <label class="inline-flex items-center cursor-pointer mt-2">
+                        <input type="checkbox" id="keepEmptyP" class="rounded border-[#9eb8ad] h-4 w-4" checked>
+                        <span class="ml-2 text-sm font-medium text-[#234236]">空行だけの段落を残す</span>
+                    </label>
+                </div>
             </div>
 
             <!-- ドロップゾーン -->
@@ -229,6 +240,10 @@
             </div>
 
             <!-- 抽出された画像プレビューリスト -->
+            <div id="wpReport" class="hidden mb-5 p-4 bg-[#f3f8f6] rounded-xl border border-[#bed3ca]/70">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-[#527366] mb-2">WordPressブロックの集計と掃除の結果</h3>
+                <div id="wpReportBody" class="text-sm text-[#234236] space-y-2"></div>
+            </div>
             <div id="imagePreviewContainer" class="hidden">
                 <h3 class="text-xs font-bold uppercase tracking-wider text-[#527366] mb-2">抽出された画像URLのプレビュー（先頭20件・クリックで画像を開く）</h3>
                 <div class="border border-[#bed3ca] rounded-xl overflow-hidden bg-white">
@@ -294,6 +309,13 @@
         const zipProgressLabel = document.getElementById('zipProgressLabel');
         const zipProgressCount = document.getElementById('zipProgressCount');
         const zipProgressBar = document.getElementById('zipProgressBar');
+        const ZIP_LABEL_DEFAULT = '画像をダウンロードしてZIPにまとめています...';
+        function resetZipProgress() {
+            zipProgressContainer.classList.add('hidden');
+            zipProgressLabel.textContent = ZIP_LABEL_DEFAULT;
+            zipProgressCount.textContent = '0 / 0';
+            zipProgressBar.style.width = '0%';
+        }
         const includeDraftsCheckbox = document.getElementById('includeDrafts');
         const convertLineBreaksCheckbox = document.getElementById('convertLineBreaks');
         const loadedFilesInfo = document.getElementById('loadedFilesInfo');
@@ -343,6 +365,8 @@
             loadedFilesInfo.classList.add('hidden');
             resultSection.classList.add('hidden');
             hideMessage();
+            resetZipProgress();
+            document.getElementById('wpReport').classList.add('hidden');
         });
 
         // オプション変更時に再変換を実行
@@ -356,6 +380,10 @@
                 processAllXMLs();
             }
         });
+
+        ['cleanWp', 'keepEmptyP'].forEach(id => document.getElementById(id).addEventListener('change', () => {
+            if (loadedFilesData.length > 0) processAllXMLs();
+        }));
 
         // メッセージ表示関数
         function showMessage(text, type = 'error') {
@@ -446,11 +474,129 @@
             return urls;
         }
 
+        // ===== v7: WordPressブロックの集計と掃除 =====
+        function countWpBlocks(html, counts) {
+            const re = /<!--\s*wp:([a-z0-9_\/-]+)/gi;
+            let m;
+            while ((m = re.exec(html)) !== null) counts[m[1]] = (counts[m[1]] || 0) + 1;
+        }
+        function imgSrcList(root) {
+            return [...root.querySelectorAll('img')].map(i => i.getAttribute('src') || '');
+        }
+        function cleanWpHtml(html, keepEmptyP, st) {
+            if (!/wp:|wp-block|wp-image/.test(html)) return html;
+            const loc = {};
+            const bump = (k, n = 1) => { loc[k] = (loc[k] || 0) + n; };
+            const t0 = document.createElement('template');
+            t0.innerHTML = html;
+            const before = imgSrcList(t0.content);
+
+            const commentRe = /<!--\s*\/?wp:[\s\S]*?-->/g;
+            const removed = (html.match(commentRe) || []).length;
+            const tpl = document.createElement('template');
+            tpl.innerHTML = html.replace(commentRe, '');
+            const root = tpl.content;
+            if (removed) bump('wpコメントの削除', removed);
+
+            // figure.wp-block-image → div.separator
+            [...root.querySelectorAll('figure.wp-block-image')].forEach(fig => {
+                if (fig.parentElement && fig.parentElement.closest('figure')) { bump('入れ子のfigure（未変換）'); return; }
+                if (fig.querySelector('figcaption')) { bump('figcaption付きfigure（未変換）'); return; }
+                const div = document.createElement('div');
+                div.className = 'separator';
+                while (fig.firstChild) div.appendChild(fig.firstChild);
+                fig.replaceWith(div);
+                bump('figure → div.separator');
+            });
+
+            // wp系classの削除
+            root.querySelectorAll('[class]').forEach(el => {
+                const cls = el.getAttribute('class').split(/\s+/).filter(Boolean);
+                const keep = cls.filter(c => !/^(wp-block-|wp-image-)/.test(c));
+                if (keep.length !== cls.length) {
+                    keep.length ? el.setAttribute('class', keep.join(' ')) : el.removeAttribute('class');
+                    bump('wp系classの削除');
+                }
+            });
+
+            // 段落の末尾の <br> と空白
+            root.querySelectorAll('p').forEach(p => {
+                const onlyBr = p.children.length === 1 && p.firstElementChild.nodeName === 'BR' && !p.textContent.replace(/\u00a0/g, '').trim();
+                if (onlyBr) {
+                    if (!keepEmptyP) { p.remove(); bump('空行だけの段落の削除'); }
+                    return;
+                }
+                const tail = () => {
+                    let n = p.lastChild;
+                    while (n && n.nodeType === 3 && !n.nodeValue.replace(/[\u00a0\s]/g, '')) { n.remove(); n = p.lastChild; }
+                    return n;
+                };
+                let n = tail();
+                while (n && n.nodeName === 'BR') { n.remove(); bump('段落末尾の <br> の削除'); n = tail(); }
+                if (n && n.nodeType === 3) {
+                    const v = n.nodeValue.replace(/[\u00a0 ]+$/, '');
+                    if (v !== n.nodeValue) { n.nodeValue = v; bump('段落末尾の空白（&nbsp;）の削除'); }
+                }
+            });
+
+            // loading属性：記事の最初の画像だけ eager
+            [...root.querySelectorAll('img')].forEach((img, i) => {
+                if (i === 0) {
+                    if (img.getAttribute('loading') !== 'eager') { img.setAttribute('loading', 'eager'); bump('先頭画像に loading="eager"'); }
+                } else if (img.hasAttribute('loading')) {
+                    img.removeAttribute('loading'); bump('2枚目以降の loading 属性の削除');
+                }
+            });
+
+            const box = document.createElement('div');
+            box.appendChild(root);
+            const out = box.innerHTML.replace(/<br>/g, '<br />').replace(/\n{3,}/g, '\n\n').trim();
+
+            // 検証：画像URLが元と完全に同じか。違えば元のHTMLを使う
+            const t1 = document.createElement('template');
+            t1.innerHTML = out;
+            const after = imgSrcList(t1.content);
+            if (before.length !== after.length || before.some((s, i) => s !== after[i])) {
+                st['⚠ 画像URLの検証NGのため、元のHTMLのままにした記事'] = (st['⚠ 画像URLの検証NGのため、元のHTMLのままにした記事'] || 0) + 1;
+                return html;
+            }
+            Object.entries(loc).forEach(([k, n]) => { st[k] = (st[k] || 0) + n; });
+            st['掃除した記事'] = (st['掃除した記事'] || 0) + 1;
+            return out;
+        }
+        function renderWpReport(survey, st, cleaned) {
+            const box = document.getElementById('wpReport');
+            const body = document.getElementById('wpReportBody');
+            body.replaceChildren();
+            const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+            const names = Object.entries(survey).sort((a, b) => b[1] - a[1]);
+            body.append(mk('p', 'font-bold', 'ブロックの種類と件数（読み込んだ全記事）'));
+            if (!names.length) {
+                body.append(mk('p', 'text-xs text-[#5b7a6e]', 'wpブロックのコメントは見つかりませんでした。'));
+            } else {
+                const ul = mk('ul', 'text-xs grid grid-cols-2 sm:grid-cols-3 gap-x-4');
+                names.forEach(([k, n]) => ul.append(mk('li', null, `wp:${k}　${n.toLocaleString()} 件`)));
+                body.append(ul);
+                const other = names.filter(([k]) => !['paragraph', 'heading', 'image'].includes(k));
+                if (other.length) body.append(mk('p', 'text-xs text-amber-800', 'paragraph・heading・image 以外のブロックがあります：' + other.map(([k]) => k).join('、')));
+            }
+            body.append(mk('p', 'font-bold', cleaned ? '掃除した内容' : '掃除はオフです（チェックを外しています）'));
+            if (cleaned) {
+                const ents = Object.entries(st);
+                if (!ents.length) body.append(mk('p', 'text-xs text-[#5b7a6e]', '掃除が必要な記事はありませんでした。'));
+                else { const ul = mk('ul', 'text-xs'); ents.forEach(([k, n]) => ul.append(mk('li', k.startsWith('⚠') ? 'text-red-700' : null, `${k}：${n.toLocaleString()}`))); body.append(ul); }
+            }
+            box.classList.remove('hidden');
+        }
+
         // 複数XMLの一括変換＆統合ロジック
         function processAllXMLs() {
+            if (!downloadImgZipBtn.disabled) resetZipProgress();
             try {
                 const includeDrafts = includeDraftsCheckbox.checked;
                 const convertLineBreaks = convertLineBreaksCheckbox.checked;
+                const cleanWp = document.getElementById('cleanWp').checked;
+                const keepEmptyP = document.getElementById('keepEmptyP').checked;
 
                 let totalConverted = 0;
                 let publishedCount = 0;
@@ -458,6 +604,8 @@
                 const previewItems = [];
                 extractedImages = [];
                 const seenImageUrls = new Set();
+                const wpSurvey = {};
+                const cleanStats = {};
 
                 let blogTitle = "Ameba Ownd Import";
                 const blogId = String(Date.now()) + '000000';
@@ -514,6 +662,11 @@
                             if (!content.includes('<p>') && !content.includes('<br')) {
                                 content = content.replace(/\r\n|\r|\n/g, '<br />\n');
                             }
+                        }
+
+                        if (content) {
+                            countWpBlocks(content, wpSurvey);
+                            if (cleanWp) content = cleanWpHtml(content, keepEmptyP, cleanStats);
                         }
 
                         const postDateNode = item.getElementsByTagNameNS("*", "post_date")[0];
@@ -632,6 +785,7 @@
                 document.getElementById('statDraft').textContent = draftCount.toLocaleString();
                 document.getElementById('statImages').textContent = extractedImages.length.toLocaleString();
                 document.getElementById('outputFileName').textContent = currentFileName;
+                renderWpReport(wpSurvey, cleanStats, cleanWp);
 
                 // 記事プレビューリストの描画
                 const previewList = document.getElementById('previewList');
@@ -765,6 +919,7 @@
             // UIを処理中状態にする
             downloadImgZipBtn.disabled = true;
             downloadImgZipBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            resetZipProgress();
             zipProgressContainer.classList.remove('hidden');
             hideMessage();
 
