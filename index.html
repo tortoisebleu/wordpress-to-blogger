@@ -173,27 +173,25 @@
                     </div>
                 </div>
 
-                <!-- ダウンロードボタン群 -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <!-- Blogger XML ダウンロード -->
-                    <div class="flex flex-col justify-between bg-[#bed3ca]/35 p-4 rounded-xl border border-[#9eb8ad] gap-3">
-                        <div>
-                            <span class="inline-block px-2 py-0.5 bg-[#3d6b59] text-white text-[10px] font-bold rounded mb-1">記事データ</span>
-                            <p class="font-bold text-[#1f3a30] text-sm truncate" id="outputFileName">blogger_import_all.xml</p>
-                            <p class="text-xs text-[#436658] mt-0.5">すべての記事を1つにまとめたBlogger用ファイルです。</p>
-                        </div>
-                        <button id="downloadBtn" class="w-full px-4 py-2.5 bg-[#3d6b59] hover:bg-[#2c5042] text-white text-sm font-bold rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                            </svg>
-                            <span>Blogger用XMLをダウンロード</span>
-                        </button>
-                    </div>
+                <!-- 手順ガイド -->
+                <div id="stepGuide" class="mb-5 p-4 bg-[#f3f8f6] rounded-xl border border-[#bed3ca]">
+                    <h3 class="text-sm font-bold text-[#1f3a30] mb-1">このあとの手順（上から順に）</h3>
+                    <p class="text-xs text-[#527366] mb-2">ファイルを読み込んだ時点で、変換は終わっています。次の順に進めてください。</p>
+                    <ol class="space-y-1.5 text-sm text-[#234236]">
+                        <li id="gstep1"><span class="gmark">⬜</span> <b>手順1</b>　「画像をZIPで一括保存」を押す（写真がPCに保存され、取れなかった写真が自動で記録されます）</li>
+                        <li id="gstep2"><span class="gmark">⬜</span> <b>手順2</b>　取れなかった写真が本当に無いかを、自動で調べる（操作は不要です）</li>
+                        <li id="gstep3"><span class="gmark">⬜</span> <b>手順3</b>　「見つからない写真を、変換結果で非表示にする」にチェックを入れる</li>
+                        <li id="gstep4"><span class="gmark">⬜</span> <b>手順4（任意）</b>　写真の新しい置き場所のURLを入れる。手動で写真を貼る場合は空欄のまま</li>
+                        <li id="gstep5"><span class="gmark">⬜</span> <b>手順5</b>　「Blogger用XMLをダウンロード」を押す</li>
+                    </ol>
+                </div>
 
+                <!-- ダウンロードボタン群 -->
+                <div class="grid grid-cols-1 gap-4">
                     <!-- 画像URLリスト ダウンロード -->
                     <div class="flex flex-col justify-between bg-[#f3f8f6] p-4 rounded-xl border border-[#bed3ca] gap-3">
                         <div>
-                            <span class="inline-block px-2 py-0.5 bg-teal-700 text-white text-[10px] font-bold rounded mb-1">画像保全用</span>
+                            <span class="inline-block px-2 py-0.5 bg-teal-700 text-white text-[10px] font-bold rounded mb-1">手順1　画像保全用</span>
                             <p class="font-bold text-[#1f3a30] text-sm">画像の一括保存 ＆ URLリスト</p>
                             <p class="text-xs text-[#527366] mt-0.5">画像をZIPでまとめて保存するか、URLリストを出力できます。</p>
                         </div>
@@ -227,6 +225,48 @@
                     </div>
                     <p id="zipProgressNote" class="text-[11px] text-[#527366] mt-1.5">※枚数が多い場合は数分かかることがあります。画面を閉じずにお待ちください。</p>
                 </div>
+            </div>
+
+            <!-- 失敗した写真の診断 -->
+            <div id="diagPanel" class="mb-5 p-4 bg-white rounded-xl border border-[#bed3ca]">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-[#527366] mb-1">手順2・3　失敗した写真の診断</h3>
+                <p class="text-xs text-[#527366]">ZIP保存が終わると、取れなかった写真が本当にOwndから無くなっているかを、自動で調べます。調べた結果は、下の一覧に出ます。以前のZIPの failed_image_urls*.txt を使いたいときだけ、下のボタンから選んでください。</p>
+                <div class="flex flex-wrap gap-2 items-center mt-2">
+                    <input type="file" id="diagFileInput" accept=".txt" multiple class="hidden">
+                    <button type="button" id="diagPickBtn" class="px-4 py-2 bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold rounded-xl shadow-sm transition">以前の失敗リスト（.txt）を選んで診断（任意）</button>
+                    <span id="diagStatus" class="text-xs text-[#527366]"></span>
+                </div>
+                <div id="diagProgress" class="hidden mt-3">
+                    <div class="flex justify-between text-xs font-bold text-[#1f3a30] mb-1.5"><span>写真を1枚ずつ確認しています...</span><span id="diagCount">0 / 0</span></div>
+                    <div class="w-full bg-[#dce8e3] rounded-full h-2.5 overflow-hidden"><div id="diagBar" class="bg-teal-700 h-2.5 rounded-full transition-all duration-200" style="width: 0%"></div></div>
+                </div>
+                <div id="diagResult" class="hidden mt-3 text-sm space-y-3 text-[#234236]"></div>
+            </div>
+
+            <!-- 写真の新しい置き場所 -->
+            <div id="baseUrlCard" class="mb-5 p-4 bg-white rounded-xl border border-[#bed3ca]">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-[#527366] mb-1">手順4（任意）　写真の新しい置き場所のURL</h3>
+                <p class="text-xs text-[#527366]">写真を新しい置き場所（GitHub Pages、Cloudflare R2 など）にアップロードしたら、写真を入れたフォルダのURLを入れてください。ダウンロードするXMLの中の写真のURLが、自動で書き換わります。手動で写真を貼る場合は、空欄のままにしてください。</p>
+                <input type="text" id="imageBaseUrl" placeholder="例：https://ユーザー名.github.io/リポジトリ名/img/" class="mt-2 w-full px-3 py-2 text-sm border border-[#9eb8ad] rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-teal-600">
+                <p id="imageBaseUrlNote" class="text-xs text-[#527366] mt-1.5"></p>
+            </div>
+
+            <!-- 手順5：Blogger用XML -->
+            <div class="mb-5">
+                <!-- Blogger XML ダウンロード -->
+                    <div class="flex flex-col justify-between bg-[#bed3ca]/35 p-4 rounded-xl border border-[#9eb8ad] gap-3">
+                        <div>
+                            <span class="inline-block px-2 py-0.5 bg-[#3d6b59] text-white text-[10px] font-bold rounded mb-1">手順5　記事データ</span>
+                            <p class="font-bold text-[#1f3a30] text-sm truncate" id="outputFileName">blogger_import_all.xml</p>
+                            <p class="text-xs text-[#436658] mt-0.5">すべての記事を1つにまとめたBlogger用ファイルです。</p>
+                        </div>
+                        <button id="downloadBtn" class="w-full px-4 py-2.5 bg-[#3d6b59] hover:bg-[#2c5042] text-white text-sm font-bold rounded-xl shadow-sm transition flex items-center justify-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span>Blogger用XMLをダウンロード</span>
+                        </button>
+                    </div>
             </div>
 
             <!-- 記事プレビューリスト -->
@@ -326,6 +366,9 @@
         let currentFileName = 'blogger_import_all.xml';
         let loadedFilesData = []; // { name: string, content: string } の配列
         let extractedImages = []; // { postTitle: string, postDate: string, url: string } の配列
+        let postImageUsage = []; // { title, date, urls[] } 記事ごとの画像URL（診断用）
+        let hideMissingUrls = new Set(); // 非表示にする（見つからない）写真のURL
+        let hiddenTotal = 0;
 
         // ドラッグ＆ドロップイベントの設定
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -367,6 +410,9 @@
             hideMessage();
             resetZipProgress();
             document.getElementById('wpReport').classList.add('hidden');
+            resetDiag();
+            hideMissingUrls = new Set();
+            [1, 2, 3, 4, 5].forEach(n => markStep(n, false));
         });
 
         // オプション変更時に再変換を実行
@@ -592,6 +638,7 @@
         // 複数XMLの一括変換＆統合ロジック
         function processAllXMLs() {
             if (!downloadImgZipBtn.disabled) resetZipProgress();
+            resetDiag();
             try {
                 const includeDrafts = includeDraftsCheckbox.checked;
                 const convertLineBreaks = convertLineBreaksCheckbox.checked;
@@ -604,6 +651,8 @@
                 const previewItems = [];
                 extractedImages = [];
                 const seenImageUrls = new Set();
+                postImageUsage = [];
+                hiddenTotal = 0;
                 const wpSurvey = {};
                 const cleanStats = {};
 
@@ -667,6 +716,7 @@
                         if (content) {
                             countWpBlocks(content, wpSurvey);
                             if (cleanWp) content = cleanWpHtml(content, keepEmptyP, cleanStats);
+                            if (hideMissingUrls.size) content = hideMissingImages(content);
                         }
 
                         const postDateNode = item.getElementsByTagNameNS("*", "post_date")[0];
@@ -677,6 +727,7 @@
 
                         // 画像URLの抽出
                         const imgs = extractImageUrlsFromHtml(content);
+                        postImageUsage.push({ title: title, date: shortDate, type: postType, status: status, urls: [...new Set(imgs)] });
                         imgs.forEach(url => {
                             if (!seenImageUrls.has(url)) {
                                 seenImageUrls.add(url);
@@ -860,7 +911,16 @@
         // Blogger XMLダウンロードボタン
         downloadBtn.addEventListener('click', () => {
             if (!convertedXmlString) return;
-            triggerDownload(convertedXmlString, currentFileName, 'application/xml;charset=utf-8');
+            let xml = convertedXmlString;
+            const base = getImageBase();
+            if (base === null) { showMessage('写真の置き場所のURLは、https:// から始まる形で入力してください。'); return; }
+            if (base) {
+                const r = rewriteOwndUrls(xml, base);
+                xml = r.out;
+                showMessage(`写真のURLを ${r.n} 箇所、新しい置き場所に書き換えてダウンロードしました。`, 'info');
+            }
+            triggerDownload(xml, currentFileName, 'application/xml;charset=utf-8');
+            markStep(5);
         });
 
         // 画像CSV一覧ダウンロードボタン（Excelで文字化けしないようBOM付きUTF-8）
@@ -890,6 +950,13 @@
 
         // 画像URLから安全なファイル名を生成するヘルパー
         function getSafeImageFilename(url, index, dateStr, contentType) {
+            const cleanUrl = url.split('?')[0].replace(/&amp;/g, '&');
+            if (/^https?:\/\/cdn\.amebaowndme\.com\//i.test(cleanUrl)) {
+                let last = cleanUrl.split('/').pop() || '';
+                try { last = decodeURIComponent(last); } catch (e) {}
+                const safe = last.replace(/[^A-Za-z0-9._-]/g, '_');
+                if (/\.(jpe?g|png|gif|webp)$/i.test(safe)) return safe;
+            }
             let ext = 'jpg';
             if (contentType) {
                 if (contentType.includes('png')) ext = 'png';
@@ -904,6 +971,263 @@
             const num = String(index + 1).padStart(4, '0');
             return `${cleanDate}_${num}.${ext}`;
         }
+
+        // ===== v12: 手順ガイド・写真URLの書き換え =====
+        function markStep(n, on = true) {
+            const el = document.getElementById('gstep' + n);
+            if (!el) return;
+            el.querySelector('.gmark').textContent = on ? '✅' : '⬜';
+            el.classList.toggle('opacity-60', on);
+        }
+
+        function getImageBase() {
+            const b = document.getElementById('imageBaseUrl').value.trim();
+            if (!b) return '';
+            if (!/^https?:\/\//i.test(b)) return null;
+            return b.endsWith('/') ? b : b + '/';
+        }
+
+        // XMLの中の Ownd の写真URLを、新しい置き場所のURLに書き換える（「画像なし:」のコメントは除く）
+        function rewriteOwndUrls(xml, base) {
+            let n = 0;
+            const re = /https?:\/\/cdn\.amebaowndme\.com\/[^\s"'<>)&]*\/([A-Za-z0-9_-]+\.(?:jpe?g|png|gif|webp))(?:\?[^\s"'<>)]*)?/gi;
+            const out = xml.replace(re, (m, file, off) => {
+                if (xml.slice(Math.max(0, off - 6), off) === '画像なし: ') return m;
+                n++;
+                return base + file;
+            });
+            return { out, n };
+        }
+
+        document.getElementById('imageBaseUrl').addEventListener('input', () => {
+            const b = getImageBase();
+            const note = document.getElementById('imageBaseUrlNote');
+            if (b === null) { note.textContent = 'https:// から始まるURLを入れてください。'; markStep(4, false); }
+            else if (!b) { note.textContent = ''; markStep(4, false); }
+            else { note.textContent = `例：…/cc7c80f5….jpg  →  ${b}cc7c80f5….jpg`; markStep(4); }
+        });
+
+        // ===== v11: 見つからない写真を非表示（HTMLコメントに置き換え）=====
+        function hideMissingImages(html) {
+            if (!hideMissingUrls.size || !/<img/i.test(html)) return html;
+            const tpl = document.createElement('template');
+            tpl.innerHTML = html;
+            const root = tpl.content;
+            let n = 0;
+            [...root.querySelectorAll('img')].forEach(img => {
+                const src = (img.getAttribute('src') || '').replace(/&amp;/g, '&');
+                if (!hideMissingUrls.has(src)) return;
+                // 画像だけを包んでいる <a>・<figure>・<p>・div.separator も、まとめて置き換える
+                let node = img;
+                while (node.parentNode && node.parentNode.nodeType === 1) {
+                    const par = node.parentNode;
+                    const only = [...par.childNodes].every(c => c === node || (c.nodeType === 3 && !c.textContent.trim()));
+                    const wrapper = par.nodeName === 'A' || par.nodeName === 'FIGURE' || par.nodeName === 'P' || (par.nodeName === 'DIV' && par.classList.contains('separator'));
+                    if (only && wrapper) node = par; else break;
+                }
+                node.replaceWith(document.createComment(' 画像なし: ' + src.replace(/--/g, '- -') + ' '));
+                n++;
+            });
+            if (!n) return html;
+            hiddenTotal += n;
+            const box = document.createElement('div');
+            box.appendChild(root);
+            return box.innerHTML.replace(/<br>/g, '<br />');
+        }
+
+        async function toggleHideMissing(on) {
+            if (!diagData || diagRunning) return;
+            diagRunning = true;
+            const statusEl = document.getElementById('diagStatus');
+            statusEl.textContent = '再変換しています。数秒かかることがあります…';
+            await new Promise(r => setTimeout(r, 60)); // 先にチェックマークと文字を画面に描く
+            try {
+                const keep = diagData;
+                hideMissingUrls = on ? new Set(keep.missing.map(u => u.replace(/&amp;/g, '&'))) : new Set();
+                if (loadedFilesData.length > 0) processAllXMLs();
+                diagData = keep;
+                renderDiag();
+                statusEl.textContent = on
+                    ? `見つからない写真を非表示にして、再変換しました（${hiddenTotal} 箇所）`
+                    : '非表示を解除して、再変換しました';
+                markStep(3, on);
+            } finally {
+                diagRunning = false;
+            }
+        }
+
+        // ===== v9: 失敗した写真の診断 =====
+        let diagRunning = false;
+        let diagData = null;
+
+        function resetDiag() {
+            if (diagRunning) return;
+            diagData = null;
+            document.getElementById('diagProgress').classList.add('hidden');
+            const r = document.getElementById('diagResult');
+            r.classList.add('hidden');
+            r.replaceChildren();
+            document.getElementById('diagStatus').textContent = '';
+            document.getElementById('diagFileInput').value = '';
+        }
+
+        function parseFailedLists(texts) {
+            const set = new Set();
+            texts.forEach(t => t.split(/\r?\n/).forEach(line => {
+                const u = line.trim().replace(/&amp;/g, '&');
+                if (/^https?:\/\//i.test(u)) set.add(u);
+            }));
+            return [...set];
+        }
+
+        // 写真を画面に読み込めるかで、存在を確かめる（失敗したら最大3回やり直す）
+        function testImageLoad(url, tries = 3, timeout = 15000) {
+            return new Promise(resolve => {
+                let n = 0;
+                const attempt = () => {
+                    n++;
+                    const img = new Image();
+                    img.referrerPolicy = 'no-referrer';
+                    let done = false;
+                    let timer;
+                    const finish = ok => {
+                        if (done) return;
+                        done = true;
+                        clearTimeout(timer);
+                        img.onload = img.onerror = null;
+                        if (ok) resolve(true);
+                        else if (n < tries) setTimeout(attempt, 800);
+                        else resolve(false);
+                    };
+                    timer = setTimeout(() => finish(false), timeout);
+                    img.onload = () => finish(true);
+                    img.onerror = () => finish(false);
+                    img.src = url;
+                };
+                attempt();
+            });
+        }
+
+        async function runDiagnosis(files, presetUrls) {
+            if (diagRunning || (!presetUrls && (!files || !files.length))) return;
+            diagRunning = true;
+            const status = document.getElementById('diagStatus');
+            const prog = document.getElementById('diagProgress');
+            const bar = document.getElementById('diagBar');
+            const count = document.getElementById('diagCount');
+            const box = document.getElementById('diagResult');
+            box.classList.add('hidden');
+            try {
+                const texts = presetUrls ? [presetUrls.join('\n')] : await Promise.all([...files].map(f => f.text()));
+                const all = parseFailedLists(texts);
+                const isOwnd = u => /^https?:\/\/cdn\.amebaowndme\.com\//i.test(u);
+                const targets = all.filter(isOwnd);
+                const others = all.filter(u => !isOwnd(u));
+                status.textContent = presetUrls ? `ZIP保存で取れなかった ${all.length} 件を、自動で診断しています` : `${files.length} 個のファイルから ${all.length} 件（重複を除く）を読み込みました`;
+                prog.classList.remove('hidden');
+                bar.style.width = '0%';
+                count.textContent = `0 / ${targets.length}`;
+
+                const ok = [], missing = [];
+                let idx = 0, done = 0;
+                const worker = async () => {
+                    while (idx < targets.length) {
+                        const u = targets[idx++];
+                        (await testImageLoad(u) ? ok : missing).push(u);
+                        done++;
+                        count.textContent = `${done} / ${targets.length}`;
+                        bar.style.width = Math.round(done / Math.max(targets.length, 1) * 100) + '%';
+                    }
+                };
+                await Promise.all(Array.from({ length: 6 }, worker));
+
+                // 見つからない写真を、使われている記事に結びつける
+                const usage = new Map();
+                postImageUsage.forEach(p => p.urls.forEach(u => {
+                    const k = u.replace(/&amp;/g, '&');
+                    if (!usage.has(k)) usage.set(k, []);
+                    usage.get(k).push(p);
+                }));
+                const byPostMap = new Map();
+                const unmatched = [];
+                missing.forEach(u => {
+                    const posts = usage.get(u);
+                    if (!posts) { unmatched.push(u); return; }
+                    posts.forEach(p => {
+                        const key = p.date + '\u0000' + p.title;
+                        if (!byPostMap.has(key)) byPostMap.set(key, { date: p.date, title: p.title, type: p.type, status: p.status, urls: [] });
+                        byPostMap.get(key).urls.push(u);
+                    });
+                });
+                const byPost = [...byPostMap.values()].sort((a, b) => ((a.status === 'publish' ? 0 : 1) - (b.status === 'publish' ? 0 : 1)) || a.date.localeCompare(b.date));
+                diagData = { total: targets.length, ok, missing, others, byPost, unmatched };
+                markStep(2);
+                renderDiag();
+            } catch (err) {
+                status.textContent = '診断中にエラーが発生しました: ' + err.message;
+            } finally {
+                diagRunning = false;
+                prog.classList.add('hidden');
+            }
+        }
+
+        function diagTypeLabel(t) { return t === 'page' ? '固定ページ' : '記事'; }
+        function diagStatusLabel(s) {
+            return ({ publish: '公開', draft: '下書き', private: '非公開', pending: '承認待ち', future: '予約投稿' })[s] || s || '不明';
+        }
+
+        function renderDiag() {
+            const box = document.getElementById('diagResult');
+            box.replaceChildren();
+            const d = diagData;
+            const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+            box.append(mk('p', 'font-bold text-[#1f3a30]', `診断した写真 ${d.total} 枚：表示できる ${d.ok.length} 枚 / 見つからない ${d.missing.length} 枚`));
+            if (d.others.length) box.append(mk('p', 'text-xs text-[#527366]', `Ownd以外のサイトの画像 ${d.others.length} 件は、診断の対象外です（あなたの写真ではないため）。`));
+            if (!postImageUsage.length) box.append(mk('p', 'text-xs text-amber-800', '記事のXMLが読み込まれていないため、どの記事で使われているかは分かりません。先にXMLを読み込んでから診断してください。'));
+            if (d.ok.length) box.append(mk('p', 'text-xs text-[#527366]', '「表示できる」写真は、Owndに残っています。ZIPの再取得か、ブラウザで右クリックして保存してください。'));
+            if (d.byPost.length) {
+                box.append(mk('p', 'font-bold', `見つからない写真がある記事：${d.byPost.length} 件`));
+                const cnt = {};
+                d.byPost.forEach(p => { const k = diagStatusLabel(p.status); cnt[k] = (cnt[k] || 0) + 1; });
+                const pages = d.byPost.filter(p => p.type === 'page').length;
+                box.append(mk('p', 'text-xs text-[#527366]', '内訳：' + Object.entries(cnt).map(([k, n]) => `${k} ${n} 件`).join(' / ') + `（うち固定ページ ${pages} 件）`));
+                const pubN = d.byPost.filter(p => p.status === 'publish').length;
+                if (pubN) box.append(mk('p', 'text-xs font-bold text-red-700', `公開されている記事のうち、見つからない写真があるのは ${pubN} 件です。優先して確認してください（一覧の先頭に太字で表示）。`));
+                const ul = mk('ul', 'text-xs divide-y divide-[#e3ede8] border border-[#bed3ca] rounded-xl max-h-60 overflow-y-auto bg-white');
+                d.byPost.forEach(p => ul.append(mk('li', p.status === 'publish' ? 'px-3 py-1.5 font-bold' : 'px-3 py-1.5 text-[#527366]', `${p.date}　[${diagTypeLabel(p.type)}・${diagStatusLabel(p.status)}]　${p.title}　（${p.urls.length} 枚）`)));
+                box.append(ul);
+            }
+            if (d.unmatched.length) box.append(mk('p', 'text-xs text-amber-800', `読み込んだ記事の中に使用箇所が見つからなかった写真が ${d.unmatched.length} 枚あります（まだ読み込んでいないXMLの記事で使われている可能性があります）。`));
+            if (d.missing.length) {
+                const lab = mk('label', 'flex items-start gap-2 text-xs cursor-pointer p-3 bg-[#f3f8f6] rounded-xl border border-[#bed3ca]');
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.className = 'mt-0.5 h-4 w-4';
+                cb.checked = hideMissingUrls.size > 0;
+                const tx = mk('span', null, null);
+                tx.append(mk('b', null, '見つからない写真を、変換結果で非表示にする'), mk('br'),
+                    document.createTextNode('壊れた画像のマークが出ないよう、該当の写真を HTMLコメント（<!-- 画像なし: 元のURL -->）に置き換えて、もう一度変換します。いつでも元に戻せます。'));
+                if (hideMissingUrls.size > 0) tx.append(mk('span', 'block mt-1 font-bold text-teal-800', `非表示にした箇所：${hiddenTotal} 箇所`));
+                lab.append(cb, tx);
+                cb.addEventListener('change', () => toggleHideMissing(cb.checked));
+                box.append(lab);
+            }
+            const row = mk('div', 'flex flex-wrap gap-2');
+            const btn = (label, fn) => { const b = mk('button', 'px-3 py-2 bg-white hover:bg-slate-50 text-teal-800 border border-teal-700/60 text-xs font-bold rounded-xl shadow-sm transition', label); b.type = 'button'; b.addEventListener('click', fn); row.append(b); };
+            btn('見つからない写真と記事（CSV）', () => {
+                const rows = [];
+                d.byPost.forEach(p => p.urls.forEach(u => rows.push([p.date, diagTypeLabel(p.type), diagStatusLabel(p.status), p.title, u])));
+                d.unmatched.forEach(u => rows.push(['', '', '', '（読み込んだ記事の中に見つかりません）', u]));
+                const csv = '日付,種類,状態,記事タイトル,写真URL\n' + rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+                triggerDownload('\uFEFF' + csv, 'missing_images_by_post.csv', 'text/csv;charset=utf-8');
+            });
+            if (d.ok.length) btn('表示できる写真のURL（.txt）', () => triggerDownload(d.ok.join('\n'), 'available_image_urls.txt', 'text/plain;charset=utf-8'));
+            box.append(row);
+            box.classList.remove('hidden');
+        }
+
+        document.getElementById('diagPickBtn').addEventListener('click', () => document.getElementById('diagFileInput').click());
+        document.getElementById('diagFileInput').addEventListener('change', e => runDiagnosis(e.target.files));
 
         // 画像一括ZIPダウンロードボタンの処理
         downloadImgZipBtn.addEventListener('click', async () => {
@@ -987,6 +1311,8 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
+                markStep(1);
+                if (failedList.length > 0) runDiagnosis(null, failedList.map(f => f.url)); else markStep(2);
                 // 完了メッセージ
                 if (failedList.length === 0) {
                     showMessage(`完了: 全 ${successCount} 枚の画像をZIPファイルに保存しました！`, 'info');
